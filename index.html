@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Portfolios</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Portfolios">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0f1117;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;overflow:hidden}
+#top{position:fixed;top:0;left:0;right:0;height:calc(34px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);background:#181b23;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;justify-content:space-between;padding-left:14px;padding-right:14px;z-index:5}
+#top b{font-size:13px} #top span{font-size:10.5px;color:#94a3b8}
+#views{position:fixed;top:calc(34px + env(safe-area-inset-top));bottom:calc(54px + env(safe-area-inset-bottom));left:0;right:0}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#0f1117;display:none}
+iframe.on{display:block}
+#tabs{position:fixed;bottom:0;left:0;right:0;height:calc(54px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#181b23;border-top:1px solid #2a2d3a;display:flex;z-index:5}
+#tabs button{flex:1;background:none;border:0;color:#64748b;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit}
+#tabs button .i{font-size:18px;line-height:1}
+#tabs button.on{color:#3b82f6}
+#upd{position:fixed;left:10px;right:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#3b82f6;color:#fff;border-radius:10px;padding:10px 12px;font-size:12px;display:none;justify-content:space-between;align-items:center;z-index:9}
+#upd button{background:#fff;color:#1d4ed8;border:0;border-radius:6px;padding:5px 10px;font-weight:600;font-size:12px}
+#off{display:none;font-size:10px;color:#f59e0b}
+</style></head><body>
+<div id="top"><b>Portfolios</b><span><span id="off">offline · </span><span id="dt">—</span></span></div>
+<div id="views">
+  <iframe id="v-posicao" data-src="posicao.html" title="Posição das Carteiras"></iframe>
+  <iframe id="v-variacoes" data-src="variacoes.html" title="Variações por Grupo"></iframe>
+</div>
+<nav id="tabs">
+  <button data-v="posicao" class="on"><span class="i">📊</span>Posição</button>
+  <button data-v="variacoes"><span class="i">📈</span>Variações</button>
+</nav>
+<div id="upd"><span>Nova atualização disponível</span><button id="updb">Atualizar</button></div>
+<script>
+(function(){
+  var cur=null;
+  function show(v){
+    cur=v;
+    document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
+    document.querySelectorAll('iframe').forEach(function(f){
+      var on=f.id==='v-'+v; f.classList.toggle('on',on);
+      if(on&&!f.src) f.src=f.dataset.src;
+    });
+    try{localStorage.setItem('tab',v)}catch(e){}
+    if(location.hash!=='#'+v) history.replaceState(null,'','#'+v);
+  }
+  document.getElementById('tabs').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(b) show(b.dataset.v);
+  });
+  var h=location.hash.slice(1), s=null; try{s=localStorage.getItem('tab')}catch(e){}
+  show(['posicao','variacoes'].indexOf(h)>=0?h:(['posicao','variacoes'].indexOf(s)>=0?s:'posicao'));
+
+  fetch('meta.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(m){
+    document.getElementById('dt').textContent='dados '+m.data_label;
+    try{localStorage.setItem('meta',JSON.stringify(m))}catch(e){}
+  }).catch(function(){
+    try{var m=JSON.parse(localStorage.getItem('meta'));if(m)document.getElementById('dt').textContent='dados '+m.data_label}catch(e){}
+  });
+  function net(){document.getElementById('off').style.display=navigator.onLine?'none':'inline'}
+  addEventListener('online',net);addEventListener('offline',net);net();
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      function prompt(w){
+        var box=document.getElementById('upd'); box.style.display='flex';
+        document.getElementById('updb').onclick=function(){w.postMessage('skip')};
+      }
+      if(reg.waiting&&navigator.serviceWorker.controller) prompt(reg.waiting);
+      reg.addEventListener('updatefound',function(){
+        var w=reg.installing;
+        w.addEventListener('statechange',function(){
+          if(w.state==='installed'&&navigator.serviceWorker.controller) prompt(w);
+        });
+      });
+      setInterval(function(){reg.update()},30*60*1000);
+      document.addEventListener('visibilitychange',function(){if(!document.hidden)reg.update()});
+    });
+    var rl=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){if(rl)return;rl=true;location.reload()});
+  }
+})();
+</script></body></html>
